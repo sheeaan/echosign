@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 import encodeRouter from './routes/encode.js';
 import decodeRouter from './routes/decode.js';
@@ -8,7 +10,9 @@ import sttRouter from './routes/stt.js';
 import ttsRouter from './routes/tts.js';
 import auditRouter from './routes/audit.js';
 
-dotenv.config();
+// Load .env from project root (two directories up from this file)
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? '3001');

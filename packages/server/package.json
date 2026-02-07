@@ -12,6 +12,8 @@
     "@echosign/core": "workspace:*",
     "@echosign/solana": "workspace:*",
     "@echosign/speech": "workspace:*",
+    "@solana/web3.js": "^1.95",
+    "bs58": "^6",
     "cors": "^2.8",
     "dotenv": "^16.4",
     "express": "^4.21",

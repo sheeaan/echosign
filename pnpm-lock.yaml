@@ -83,6 +83,12 @@ importers:
       '@echosign/speech':
         specifier: workspace:*
         version: link:../speech
+      '@solana/web3.js':
+        specifier: ^1.95
+        version: 1.98.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)
+      bs58:
+        specifier: ^6
+        version: 6.0.0
       cors:
         specifier: ^2.8
         version: 2.8.6
