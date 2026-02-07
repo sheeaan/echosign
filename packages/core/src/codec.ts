@@ -144,27 +144,75 @@ export function getAlertName(code: Uint8Array): string {
   return ALERT_NAMES[code[0]] ?? 'Unknown';
 }
 
-const ENCODE_SYSTEM_PROMPT = `You are an emergency message encoder for disaster-response communications.
+const ENCODE_SYSTEM_PROMPT = `You are the COGNITIVE CODEC for EchoSign — an AI-Native Emergency Triage System.
 
-Given an emergency message (up to 200 words), extract structured data and output
-ONLY a JSON object with these exact fields:
-- type: 2-letter code (EQ=earthquake, FL=flood, FI=fire, TS=tsunami,
-  EV=evacuation, MD=medical, SO=SOS, RC=rescue, IN=infrastructure, SC=supply,
-  AC=all-clear)
-- severity: integer 1-9 (1=minor, 5=serious, 9=catastrophic)
-- lat: latitude as decimal (e.g., 45.5231)
-- lon: longitude as decimal (e.g., -122.6765)
-- pop: estimated people affected as integer
-- msg: most critical remaining info in max 8 ASCII characters
+Your mission: Act as the "Gatekeeper" that filters noise, prioritizes life-saving data, and manages bandwidth in disaster scenarios.
 
-Rules:
-- Do NOT guess missing data. Use 0 for unknown numbers, "??" for unknown type.
-- lat/lon: If only a city/region name is given, use its approximate coordinates.
-- pop: Best estimate. 0 if unknown.
-- msg: Abbreviate aggressively. Examples: "TRAPPED", "RISINGWT", "COLLAPSE",
-  "NEEDH2O", "ROADBLK"
+## 🛑 CRITICAL INSTRUCTIONS
 
-Output ONLY valid JSON. No explanation, no markdown fences.`;
+### STEP 1: GATEKEEPER (Filter Non-Emergencies)
+Analyze if the input is a REAL EMERGENCY requiring immediate response.
+
+**REJECT immediately if:**
+- Personal/trivial issues (lost pets, minor inconveniences, casual questions)
+- Non-urgent requests (routine supply needs, non-critical info)
+- Spam, jokes, or test messages
+
+**ACCEPT if:**
+- Life-threatening situations (medical, trapped people, imminent danger)
+- Infrastructure failures (dam collapse, building collapse, power grid failure)
+- Natural disasters (earthquake, flood, fire, tsunami)
+- Mass casualty events
+- Evacuation needs
+
+### STEP 2: CHAIN-OF-THOUGHT REASONING
+If you determine this IS an emergency, provide detailed reasoning:
+1. What keywords/context triggered acceptance?
+2. What type of emergency is this?
+3. How severe is it (1-9 scale)?
+4. What's your confidence level (0-1)?
+
+### STEP 3: STRUCTURED OUTPUT
+Output ONLY a JSON object with this EXACT structure:
+
+{
+  "isEmergency": true/false,
+  "reasoning": "Detailed chain-of-thought explanation here",
+  "confidence": 0.0-1.0,
+  "rejectionReason": "Only if isEmergency=false, explain why",
+  "fields": {
+    "type": "EQ/FL/FI/TS/EV/MD/SO/RC/IN/SC/AC",
+    "severity": 1-9,
+    "lat": decimal,
+    "lon": decimal,
+    "pop": integer,
+    "msg": "8 chars max"
+  }
+}
+
+### TYPE CODES:
+- EQ=earthquake, FL=flood, FI=fire, TS=tsunami
+- EV=evacuation, MD=medical, SO=SOS, RC=rescue
+- IN=infrastructure, SC=supply, AC=all-clear
+
+### SEVERITY SCALE:
+1-3=minor, 4-6=serious, 7-8=critical, 9=catastrophic
+
+### RULES:
+- Use 0 for unknown lat/lon/pop
+- If only city name given, use approximate coordinates
+- msg: Abbreviate aggressively (e.g., "TRAPPED", "RISINGWT", "COLLAPSE")
+- Be authoritative but don't guess wildly
+
+### EXAMPLES:
+
+Input: "My cat ran away help!"
+Output: {"isEmergency": false, "reasoning": "This is a personal pet issue, not a life-threatening emergency.", "confidence": 0.95, "rejectionReason": "Non-emergency: personal pet issue"}
+
+Input: "HELP! Massive flooding at Hoover Dam, water rising fast!"
+Output: {"isEmergency": true, "reasoning": "Detected keywords 'flooding' and 'dam'. Hoover Dam is critical infrastructure. Water rising indicates imminent catastrophic failure. This is a mass casualty event.", "confidence": 0.92, "fields": {"type": "IN", "severity": 9, "lat": 36.0156, "lon": -114.7378, "pop": 10000, "msg": "DAMFAIL"}}
+
+Output ONLY valid JSON. No markdown, no explanation outside the JSON.`;
 
 const DECODE_SYSTEM_PROMPT = `You are an emergency alert decoder for disaster-response command centers.
 
@@ -186,10 +234,11 @@ Rules:
 
 /**
  * Encode an emergency message into a 24-byte semantic code using Gemini.
+ * Now includes AI triage/filtering and chain-of-thought reasoning.
  */
 export async function encodeMessage(text: string, apiKey: string): Promise<SemanticCode> {
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
 
   const result = await model.generateContent({
     contents: [{ role: 'user', parts: [{ text }] }],
@@ -197,7 +246,33 @@ export async function encodeMessage(text: string, apiKey: string): Promise<Seman
   });
 
   const responseText = result.response.text().trim();
-  const fields: SemanticFields = JSON.parse(responseText);
+
+  // Parse AI response with metadata
+  interface AIResponse {
+    isEmergency: boolean;
+    reasoning: string;
+    confidence: number;
+    rejectionReason?: string;
+    fields?: SemanticFields;
+  }
+
+  const aiResponse: AIResponse = JSON.parse(responseText);
+
+  // If AI rejected as non-emergency, return rejection response
+  if (!aiResponse.isEmergency) {
+    return {
+      bytes: new Uint8Array(24), // Empty bytes for rejected messages
+      hex: '',
+      fields: { type: '', severity: 0, lat: 0, lon: 0, pop: 0, msg: '' },
+      isEmergency: false,
+      reasoning: aiResponse.reasoning,
+      confidence: aiResponse.confidence,
+      rejectionReason: aiResponse.rejectionReason || 'Not classified as emergency',
+    };
+  }
+
+  // AI accepted as emergency - encode normally
+  const fields = aiResponse.fields!;
 
   // Clamp msg to 8 chars
   fields.msg = fields.msg.slice(0, 8);
@@ -205,7 +280,14 @@ export async function encodeMessage(text: string, apiKey: string): Promise<Seman
   const bytes = packFields(fields);
   const hex = bytesToHex(bytes);
 
-  return { bytes, hex, fields };
+  return {
+    bytes,
+    hex,
+    fields,
+    isEmergency: true,
+    reasoning: aiResponse.reasoning,
+    confidence: aiResponse.confidence,
+  };
 }
 
 /**
@@ -225,7 +307,7 @@ export async function decodeMessage(
   const fields = unpackFields(code);
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
 
   const result = await model.generateContent({
     contents: [{ role: 'user', parts: [{ text: JSON.stringify(fields) }] }],

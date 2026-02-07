@@ -36,6 +36,11 @@ export interface EncodeResult {
     pop: number;
     msg: string;
   };
+  // AI Cognitive Codec metadata
+  isEmergency: boolean;
+  reasoning?: string;
+  confidence?: number;
+  rejectionReason?: string;
 }
 
 export interface DecodeResult {

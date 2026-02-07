@@ -1,22 +1,22 @@
 /** Alert type codes - byte 0 of semantic code */
 export enum AlertType {
-  SOS        = 0x01,
-  Medical    = 0x02,
-  Fire       = 0x03,
-  Flood      = 0x04,
+  SOS = 0x01,
+  Medical = 0x02,
+  Fire = 0x03,
+  Flood = 0x04,
   Earthquake = 0x05,
-  Infra      = 0x06,
+  Infra = 0x06,
   Evacuation = 0x07,
-  AllClear   = 0x08,
-  Supply     = 0x09,
-  Rescue     = 0x0A,
+  AllClear = 0x08,
+  Supply = 0x09,
+  Rescue = 0x0A,
 }
 
 /** Severity levels - byte 1 */
 export enum Severity {
-  Low      = 0x01,
-  Medium   = 0x02,
-  High     = 0x03,
+  Low = 0x01,
+  Medium = 0x02,
+  High = 0x03,
   Critical = 0x04,
 }
 
@@ -30,11 +30,16 @@ export interface SemanticFields {
   msg: string;        // up to 8 ASCII chars of key info
 }
 
-/** The 24-byte packed binary code */
+/** The 24-byte packed binary code with AI metadata */
 export interface SemanticCode {
   bytes: Uint8Array;  // exactly 24 bytes
   hex: string;        // 48 hex chars
   fields: SemanticFields;
+  // AI Cognitive Codec metadata
+  reasoning?: string;      // Chain-of-thought trace from Gemini
+  confidence?: number;     // AI confidence score 0-1
+  isEmergency: boolean;    // Gatekeeper decision
+  rejectionReason?: string; // Why message was rejected (if !isEmergency)
 }
 
 /** Ed25519 signed payload */

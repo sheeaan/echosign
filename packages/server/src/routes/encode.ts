@@ -18,10 +18,16 @@ router.post('/encode', async (req, res) => {
     }
 
     const result = await encodeMessage(text, apiKey);
+
+    // Return full AI response including metadata
     res.json({
       code: result.hex,
       hex: result.hex,
       fields: result.fields,
+      isEmergency: result.isEmergency,
+      reasoning: result.reasoning,
+      confidence: result.confidence,
+      rejectionReason: result.rejectionReason,
     });
   } catch (err) {
     res.status(500).json({ error: String(err) });

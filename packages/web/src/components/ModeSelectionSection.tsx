@@ -1,15 +1,17 @@
-import { useState } from 'react';
+interface ModeSelectionSectionProps {
+    mode: 'encode' | 'decode' | 'audit';
+    setMode: (mode: 'encode' | 'decode' | 'audit') => void;
+}
 
-export const ModeSelectionSection = (): JSX.Element => {
-    const [mode, setMode] = useState<'encode' | 'decode' | 'audit'>('encode');
+export const ModeSelectionSection = ({ mode, setMode }: ModeSelectionSectionProps): JSX.Element => {
 
     return (
         <div className="flex gap-2 p-4 bg-neutral-900">
             <button
                 onClick={() => setMode('encode')}
                 className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-colors ${mode === 'encode'
-                        ? 'bg-red-600 text-white'
-                        : 'bg-neutral-800 text-gray-400 hover:bg-neutral-700'
+                    ? 'bg-red-600 text-white'
+                    : 'bg-neutral-800 text-gray-400 hover:bg-neutral-700'
                     }`}
             >
                 Encode
@@ -17,8 +19,8 @@ export const ModeSelectionSection = (): JSX.Element => {
             <button
                 onClick={() => setMode('decode')}
                 className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-colors ${mode === 'decode'
-                        ? 'bg-amber-500 text-white'
-                        : 'bg-neutral-800 text-gray-400 hover:bg-neutral-700'
+                    ? 'bg-amber-500 text-white'
+                    : 'bg-neutral-800 text-gray-400 hover:bg-neutral-700'
                     }`}
             >
                 Decode
@@ -26,8 +28,8 @@ export const ModeSelectionSection = (): JSX.Element => {
             <button
                 onClick={() => setMode('audit')}
                 className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-colors ${mode === 'audit'
-                        ? 'bg-green-600 text-white'
-                        : 'bg-neutral-800 text-gray-400 hover:bg-neutral-700'
+                    ? 'bg-green-600 text-white'
+                    : 'bg-neutral-800 text-gray-400 hover:bg-neutral-700'
                     }`}
             >
                 Audit
