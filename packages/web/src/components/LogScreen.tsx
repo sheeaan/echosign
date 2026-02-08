@@ -7,9 +7,10 @@ interface LogScreenProps {
     setLogs: (logs: Incident[]) => void;
     isDarkMode: boolean;
     onToggleTheme: () => void;
+    setCurrentScreen: (screen: string) => void;
 }
 
-const LogScreen: React.FC<LogScreenProps> = ({ logs, setLogs, isDarkMode, onToggleTheme }) => {
+const LogScreen: React.FC<LogScreenProps> = ({ logs, setLogs, isDarkMode, onToggleTheme, setCurrentScreen }) => {
     const [filter, setFilter] = useState('All');
     const [syncingId, setSyncingId] = useState<string | null>(null);
     const [syncError, setSyncError] = useState<string | null>(null);
@@ -73,29 +74,37 @@ const LogScreen: React.FC<LogScreenProps> = ({ logs, setLogs, isDarkMode, onTogg
     return (
         <div className="flex flex-col min-h-full">
             <header className="sticky top-0 z-50 bg-white dark:bg-brand-bg-dark border-b border-gray-200 dark:border-white/5 shadow-sm transition-colors">
-                <div className="flex items-center p-4 justify-between h-16 pt-12 pb-8">
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 cursor-pointer text-brand-dark dark:text-white">
-                            <span className="material-symbols-outlined text-xl">arrow_back_ios_new</span>
-                        </div>
-                        <div>
-                            <h1 className="text-sm font-bold tracking-widest uppercase text-brand-dark dark:text-white">Activity Log</h1>
-                            <p className="text-[10px] font-mono text-gray-400 dark:text-white/40 leading-none">NODE_S_ID: 9912-DELTA</p>
-                        </div>
+                <div className="flex items-center p-4 justify-between h-16 pt-8 pb-8">
+                    <button onClick={() => setCurrentScreen('report')} className="text-primary flex size-10 items-center justify-center hover:bg-brand-dark/10 rounded-functional transition-colors">
+                        <span className="material-symbols-outlined text-[24px]">chevron_left</span>
+                    </button>
+                    <div className="flex flex-col items-center justify-center">
+                    <h2 className="font-black tracking-tighter dark:text-white tactical-font text-lg font-bold leading-none tracking-wider uppercase">Activity Log</h2>
+                    <p className="text-[10px] font-mono text-gray-400 dark:text-white/40 leading-none">NODE_S_ID: 9912-DELTA</p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <button
-                            onClick={onToggleTheme}
-                            className="w-10 h-10 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-black/20 border border-gray-200 dark:border-white/10 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
+                    <button
+                        onClick={onToggleTheme}
+                        className="w-10 h-10 flex items-center justify-center rounded-xl transition-all
+                                bg-white dark:bg-slate-800 
+                                border border-slate-200 dark:border-slate-700
+                                shadow-sm dark:shadow-[inset_0_1px_2px_rgba(255,255,255,0.1)]
+                                hover:bg-slate-100 dark:hover:bg-slate-700/80
+                                z-10"
+                    >
+                        <span 
+                            className={`material-symbols-outlined text-xl transition-all duration-300 ${
+                                isDarkMode 
+                                    ? 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.4)]' 
+                                    : 'text-slate-600'
+                            }`}
                         >
-                            <span className="material-symbols-outlined text-xl text-brand-dark dark:text-white">{isDarkMode ? 'light_mode' : 'dark_mode'}</span>
-                        </button>
-                        <button className="w-10 h-10 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-black/20 border border-gray-200 dark:border-white/10">
-                            <span className="material-symbols-outlined text-xl text-brand-dark dark:text-white">filter_list</span>
-                        </button>
+                            {isDarkMode ? 'light_mode' : 'dark_mode'}
+                        </span>
+                    </button>
                     </div>
                 </div>
-                <div className="bg-gray-50 dark:bg-black/40 px-4 py-2 flex items-center justify-between border-t border-gray-100 dark:border-white/5">
+                {/* <div className="bg-gray-50 dark:bg-black/40 px-4 py-2 flex items-center justify-between border-t border-gray-100 dark:border-white/5">
                     <div className="flex items-center gap-2">
                         <span className="material-symbols-outlined text-sm text-primary">sensors</span>
                         <span className="text-[10px] font-mono font-bold tracking-tight text-brand-dark dark:text-primary">NETWORK: SECURE</span>
@@ -104,7 +113,7 @@ const LogScreen: React.FC<LogScreenProps> = ({ logs, setLogs, isDarkMode, onTogg
                         <span className="text-[10px] font-mono font-medium tracking-tighter text-gray-400 dark:text-white/40 uppercase">Buffer: 128kb</span>
                         <div className="size-1.5 rounded-full bg-primary shadow-[0_0_8px_#FCBA04]"></div>
                     </div>
-                </div>
+                </div> */}
             </header>
 
             <main className="flex-1 pb-12">
