@@ -1,3 +1,4 @@
+
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -6,7 +7,7 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
-    allowedHosts: 'all',
+    allowedHosts: ['.ngrok-free.dev', '.ngrok.io'],
     proxy: {
       '/api': 'http://localhost:3001',
     },
