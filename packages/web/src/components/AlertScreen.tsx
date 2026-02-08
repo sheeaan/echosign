@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Incident } from '../types';
 import { updateIncidentStatus, decodeHex, createIncident, classifyIncident } from '../services/incidents';
 import { useAcousticListen } from '../hooks/useAcousticListen';
@@ -20,13 +20,128 @@ const AlertScreen: React.FC<AlertScreenProps> = ({ isDarkMode, onToggleTheme, in
     const [isDecodingHex, setIsDecodingHex] = useState(false);
     const [decodeStatus, setDecodeStatus] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const { startListening, stopAndDecode, isListening } = useAcousticListen();
+    const { startListening, stopAndDecode, isListening, analyserRef } = useAcousticListen();
+    const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const animFrameRef = useRef<number>(0);
+    const spectrogramDataRef = useRef<Uint8Array[]>([]);
     const [hexInput, setHexInput] = useState('');
     const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
     // Show the most recent non-dismissed incident
     const latestIncident = incidents.find(i => !dismissedIds.has(i.id)) || null;
     const pendingCount = incidents.filter(i => i.status === 'pending' && !dismissedIds.has(i.id)).length;
+
+    // Real-time spectrogram renderer using AnalyserNode frequency data
+    const drawSpectrogram = useCallback(() => {
+        const canvas = canvasRef.current;
+        const analyser = analyserRef.current;
+        if (!canvas || !analyser) return;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Use CSS dimensions (ctx is already scaled by devicePixelRatio)
+        const rect = canvas.getBoundingClientRect();
+        const width = rect.width;
+        const height = rect.height;
+
+        // Get frequency data (0-255 per bin)
+        const bufferLength = analyser.frequencyBinCount; // 1024 bins
+        const dataArray = new Uint8Array(bufferLength);
+        analyser.getByteFrequencyData(dataArray);
+
+        // We only care about 0-8kHz range (FSK tones are 1-4.5kHz)
+        // With 44100 sample rate and 1024 bins, each bin ≈ 21.5Hz
+        // 8kHz / 21.5 ≈ 372 bins
+        const maxBin = Math.min(372, bufferLength);
+
+        // Store column for scrolling waterfall
+        const column = dataArray.slice(0, maxBin);
+        spectrogramDataRef.current.push(new Uint8Array(column));
+
+        // Keep only enough columns to fill the canvas
+        const maxColumns = Math.ceil(width / 2);
+        if (spectrogramDataRef.current.length > maxColumns) {
+            spectrogramDataRef.current = spectrogramDataRef.current.slice(-maxColumns);
+        }
+
+        // Clear canvas
+        ctx.fillStyle = '#0a0a08';
+        ctx.fillRect(0, 0, width, height);
+
+        const columns = spectrogramDataRef.current;
+        const colWidth = 2;
+        const startX = width - columns.length * colWidth;
+
+        // Draw waterfall: each column is a vertical slice of frequency data
+        for (let col = 0; col < columns.length; col++) {
+            const freqData = columns[col];
+            const x = startX + col * colWidth;
+
+            for (let bin = 0; bin < maxBin; bin++) {
+                const value = freqData[bin];
+                if (value < 8) continue; // Skip silence for performance
+
+                // Map bin to Y (low freq at bottom, high at top)
+                const y = height - (bin / maxBin) * height;
+                const binHeight = Math.max(1, height / maxBin);
+
+                // Color: dark blue → cyan → green → yellow → red (heat map)
+                const norm = value / 255;
+                const r = norm > 0.6 ? Math.floor(255 * ((norm - 0.6) / 0.4)) : 0;
+                const g = norm > 0.3 ? Math.floor(255 * Math.min(1, (norm - 0.3) / 0.4)) : 0;
+                const b = norm < 0.5 ? Math.floor(200 * (norm / 0.5)) : Math.floor(200 * (1 - (norm - 0.5) / 0.5));
+                const a = Math.max(0.3, norm);
+
+                ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
+                ctx.fillRect(x, y - binHeight, colWidth, binHeight);
+            }
+        }
+
+        // Draw horizontal frequency guides
+        ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+        ctx.lineWidth = 1;
+        const freqLabels = [1000, 2000, 4000, 8000]; // Hz
+        const binPerHz = maxBin / 8000;
+        for (const freq of freqLabels) {
+            const y = height - (freq * binPerHz / maxBin) * height;
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(width, y);
+            ctx.stroke();
+        }
+
+        // Draw scanning line at right edge
+        const gradient = ctx.createLinearGradient(width - 8, 0, width, 0);
+        gradient.addColorStop(0, 'rgba(252, 186, 4, 0)');
+        gradient.addColorStop(1, 'rgba(252, 186, 4, 0.4)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(width - 4, 0, 4, height);
+
+        animFrameRef.current = requestAnimationFrame(drawSpectrogram);
+    }, [analyserRef]);
+
+    // Start/stop the spectrogram animation when listening state changes
+    useEffect(() => {
+        if (isListening) {
+            spectrogramDataRef.current = [];
+            animFrameRef.current = requestAnimationFrame(drawSpectrogram);
+        } else {
+            cancelAnimationFrame(animFrameRef.current);
+        }
+        return () => cancelAnimationFrame(animFrameRef.current);
+    }, [isListening, drawSpectrogram]);
+
+    // Resize canvas to match container
+    const handleCanvasResize = useCallback((canvas: HTMLCanvasElement | null) => {
+        if (!canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * window.devicePixelRatio;
+        canvas.height = rect.height * window.devicePixelRatio;
+        const ctx = canvas.getContext('2d');
+        if (ctx) ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        canvasRef.current = canvas;
+    }, []);
 
     const handleIgnore = () => {
         if (!latestIncident) return;
@@ -297,38 +412,39 @@ const AlertScreen: React.FC<AlertScreenProps> = ({ isDarkMode, onToggleTheme, in
                     </div>
 
                     <div className="rounded-functional bg-white dark:bg-brand-card-dark border border-gray-200 dark:border-brand-border overflow-hidden transition-colors">
-                        <div className="h-36 w-full relative bg-gray-50 dark:bg-black/20">
-                            <div className="absolute inset-0 spectrogram-grid opacity-30"></div>
-                            <div className="absolute left-2 top-0 h-full py-2 flex flex-col justify-between font-mono text-[8px] text-gray-400 z-10">
-                                <span>24kHz</span>
-                                <span>12kHz</span>
-                                <span>0kHz</span>
+                        <div className="h-40 w-full relative bg-[#0a0a08]" style={{ '--spec-bg': '#0a0a08' } as React.CSSProperties}>
+                            {/* Real-time spectrogram canvas */}
+                            <canvas
+                                ref={handleCanvasResize}
+                                className="absolute inset-0 w-full h-full"
+                            />
+
+                            {/* Frequency axis labels */}
+                            <div className="absolute left-2 top-0 h-full py-2 flex flex-col justify-between font-mono text-[8px] text-white/40 z-10 pointer-events-none">
+                                <span>8kHz</span>
+                                <span>4kHz</span>
+                                <span>2kHz</span>
+                                <span>0Hz</span>
                             </div>
-                            <div className="absolute inset-0 flex items-end justify-around px-8 pb-3">
-                                {[...Array(15)].map((_, i) => {
-                                    // Deterministic values per bar so they don't flicker on re-render
-                                    const baseHeight = ((i * 37 + 13) % 80) + 20;
-                                    const animDuration = ((i * 53 + 7) % 20 + 10) / 10;
-                                    const animDelay = (i * 0.15);
-                                    return (
-                                        <div
-                                            key={i}
-                                            className={`w-1.5 rounded-full transition-all duration-300 ease-in-out ${isListening ? 'bg-brand-success' : 'bg-gray-300 dark:bg-gray-700'}`}
-                                            style={{
-                                                height: isListening ? `${baseHeight}%` : '10%',
-                                                opacity: isListening ? 0.7 : 0.3,
-                                                animation: isListening ? `pulse ${animDuration}s ${animDelay}s infinite` : 'none',
-                                            }}
-                                        />
-                                    );
-                                })}
-                            </div>
-                            {isListening && (
-                                <div className="absolute top-0 right-1/4 h-full w-[1px] bg-primary/40 shadow-[0_0_8px_#FCBA04]"></div>
+
+                            {/* Idle overlay when not listening */}
+                            {!isListening && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-gray-100/90 dark:bg-black/60">
+                                    <div className="flex flex-col items-center gap-2">
+                                        <span className="material-symbols-outlined text-3xl text-gray-400 dark:text-gray-600">graphic_eq</span>
+                                        <span className="font-mono text-[10px] text-gray-400 dark:text-gray-600 uppercase tracking-widest">Awaiting Signal</span>
+                                    </div>
+                                </div>
                             )}
+
+                            {/* Status badge */}
                             <div className="absolute bottom-2 right-3 z-10">
-                                <span className="font-mono text-[8px] text-gray-500 uppercase tracking-widest bg-gray-100 dark:bg-black/40 px-2 py-0.5 rounded border border-gray-200 dark:border-white/5">
-                                    {isListening ? 'RX: Active' : 'RX: Idle'}
+                                <span className={`font-mono text-[8px] uppercase tracking-widest px-2 py-0.5 rounded border ${
+                                    isListening
+                                        ? 'text-brand-success bg-brand-success/10 border-brand-success/30 shadow-[0_0_8px_rgba(34,197,94,0.2)]'
+                                        : 'text-gray-500 bg-gray-100 dark:bg-black/40 border-gray-200 dark:border-white/5'
+                                }`}>
+                                    {isListening ? 'RX: Live' : 'RX: Idle'}
                                 </span>
                             </div>
                         </div>
