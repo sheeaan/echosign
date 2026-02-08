@@ -97,14 +97,14 @@ const App: React.FC = () => {
           <ReportScreen onIncidentCapture={addIncidentToLog} isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />
         </div>
         <div className={`flex-1 overflow-y-auto no-scrollbar ${currentScreen === 'alerts' ? '' : 'hidden'}`}>
-          <AlertScreen isDarkMode={isDarkMode} onToggleTheme={toggleTheme} incidents={logs} onIncidentUpdate={handleIncidentUpdate} />
+          <AlertScreen isDarkMode={isDarkMode} onToggleTheme={toggleTheme} incidents={logs} onIncidentUpdate={handleIncidentUpdate} setCurrentScreen={setCurrentScreen} />
         </div>
         <div className={`flex-1 overflow-y-auto no-scrollbar ${currentScreen === 'logs' ? '' : 'hidden'}`}>
-          <LogScreen logs={logs} setLogs={setLogs} isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />
+          <LogScreen logs={logs} setLogs={setLogs} isDarkMode={isDarkMode} onToggleTheme={toggleTheme} setCurrentScreen={setCurrentScreen} />
         </div>
 
         {/* Bottom Navigation */}
-        <nav className="flex items-center justify-around px-8 py-4 pb-8 bg-brand-card-light dark:bg-brand-card-dark border-t border-brand-border/10 dark:border-brand-border/30 transition-colors z-50">
+        <nav className="flex items-center justify-around px-8 py-4 pb-5 bg-brand-card-light dark:bg-brand-card-dark border-t border-brand-border/10 dark:border-brand-border/30 transition-colors z-50">
           <button
             onClick={() => setCurrentScreen('report')}
             className={`flex flex-col items-center gap-1.5 group transition-opacity duration-200 ${currentScreen === 'report' ? 'opacity-100' : 'opacity-70 group-hover:opacity-100'} active:animate-button-press`}

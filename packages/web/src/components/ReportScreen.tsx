@@ -191,31 +191,62 @@ const ReportScreen: React.FC<ReportScreenProps> = ({ onIncidentCapture, isDarkMo
 
     return (
         <div className="flex flex-col min-h-full">
-            <header className="bg-brand-dark dark:bg-brand-dark/95 text-white pt-12 pb-6 px-6 rounded-b-[2rem] shadow-2xl transition-colors relative">
+            <header className="
+                relative pt-4 pb-6 px-6 rounded-b-[2rem] transition-all duration-300 shadow-xl
+                bg-slate-50 text-slate-900 border-b border-slate-200
+                dark:bg-[#0f172a] dark:text-slate-50 dark:border-b dark:border-white/5 dark:shadow-2xl dark:shadow-blue-900/20
+            ">
+                {/* Theme Toggle Button */}
                 <button
                     onClick={onToggleTheme}
-                    className="absolute top-10 right-6 w-10 h-10 flex items-center justify-center rounded-lg bg-white/10 border border-white/20 hover:bg-white/20 transition-colors z-10"
+                    className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center rounded-xl transition-all
+                            bg-white dark:bg-slate-800 
+                            border border-slate-200 dark:border-slate-700
+                            shadow-sm dark:shadow-inner
+                            hover:bg-slate-100 dark:hover:bg-slate-700/80
+                            text-slate-600 dark:text-yellow-400 z-10"
                 >
-                    <span className="material-symbols-outlined text-xl">{isDarkMode ? 'light_mode' : 'dark_mode'}</span>
+                    <span className="material-symbols-outlined text-xl">
+                        {isDarkMode ? 'light_mode' : 'dark_mode'}
+                    </span>
                 </button>
 
-                <div className="flex items-center justify-between mb-4 pr-12">
+                <div className="flex items-center justify-between mb-5 pr-12">
                     <div className="flex flex-col">
-                        <div className="flex items-center gap-2 opacity-80 mb-1">
-                            <span className="material-symbols-outlined text-xs">location_searching</span>
-                            <span className="text-[10px] font-mono tracking-[0.2em] font-bold">GPS SIGNAL: ACTIVE</span>
+                        <div className="flex items-center gap-2 mb-1.5">
+                            <span className="material-symbols-outlined text-[14px] text-blue-600 dark:text-blue-400">
+                                location_searching
+                            </span>
+                            <span className="text-[10px] font-mono tracking-[0.2em] font-bold text-slate-500 dark:text-blue-400/80">
+                                GPS SIGNAL: <span className="animate-pulse">ACTIVE</span>
+                            </span>
                         </div>
-                        <h1 className="text-2xl font-extrabold tracking-tight tactical-font uppercase">Report Incident</h1>
+                        <h1 className="text-2xl font-black tracking-tighter tactical-font uppercase italic">
+                            Report Incident
+                        </h1>
                     </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4 py-3 px-4 bg-black/20 rounded-tactical border border-white/10">
-                    <div className="flex flex-col">
-                        <span className="text-[9px] text-white/50 uppercase font-bold tracking-tighter">Coordinate</span>
-                        <span className="text-[11px] font-mono font-medium">34.0522 N, 118.2437 W</span>
+
+                {/* Tactical Info Box (The "Dashboard" look) */}
+                <div className="grid grid-cols-2 gap-4 py-3.5 px-4 rounded-2xl border transition-colors
+                                bg-white/60 dark:bg-slate-800/40 
+                                border-slate-200 dark:border-white/10 
+                                backdrop-blur-sm">
+                    <div className="flex flex-col border-r border-slate-200 dark:border-white/5">
+                        <span className="text-[9px] text-slate-400 dark:text-slate-500 uppercase font-bold tracking-widest">
+                            Coordinate
+                        </span>
+                        <span className="text-[12px] font-mono font-bold text-slate-700 dark:text-blue-100">
+                            34.0522 N, 118.2437 W
+                        </span>
                     </div>
                     <div className="flex flex-col text-right">
-                        <span className="text-[9px] text-white/50 uppercase font-bold tracking-tighter">Sector</span>
-                        <span className="text-[11px] font-mono font-medium">4-ALPHA [COMM-OK]</span>
+                        <span className="text-[9px] text-slate-400 dark:text-slate-500 uppercase font-bold tracking-widest">
+                            Sector
+                        </span>
+                        <span className="text-[12px] font-mono font-bold text-slate-700 dark:text-blue-100">
+                            4-ALPHA [COMM-OK]
+                        </span>
                     </div>
                 </div>
             </header>
@@ -386,7 +417,7 @@ const ReportScreen: React.FC<ReportScreenProps> = ({ onIncidentCapture, isDarkMo
                                 <div className="absolute -top-3 left-6 px-2 bg-primary rounded text-[9px] font-black text-brand-dark uppercase tracking-widest z-10">
                                     Auto-Classification
                                 </div>
-                                <div className="bg-brand-dark dark:bg-[#1A1512] border border-white/10 rounded-[calc(0.75rem-2px)] p-4 flex items-center justify-between transition-colors">
+                                <div className="bg-brand-dark dark:bg-brand-card-dark border border-white/10 rounded-[calc(0.75rem-2px)] p-4 flex items-center justify-between transition-colors">
                                     <div className="flex items-center gap-4">
                                         <div className="bg-primary/10 border border-primary/30 p-2.5 rounded-lg flex items-center justify-center">
                                             <span className="material-symbols-outlined text-primary text-2xl" style={{ fontVariationSettings: "'FILL' 0, 'wght' 300" }}>emergency_home</span>

@@ -145,7 +145,7 @@ export function useAcousticListen() {
   const startListening = useCallback(async () => {
     chunksRef.current = [];
     setResult(null);
-    const ctx = new AudioContext({ sampleRate: 44100 });
+    const ctx = new AudioContext();
     ctxRef.current = ctx;
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true },

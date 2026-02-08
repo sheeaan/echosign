@@ -50,6 +50,9 @@ pnpm install
 # Configure environment
 cp .env.example .env
 # Edit .env and add your GEMINI_API_KEY
+
+# Build internal dependencies
+pnpm --filter @echosign/server... build
 ```
 
 The only required env var is:
