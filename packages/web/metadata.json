@@ -1,0 +1,8 @@
+{
+    "name": "Tactical Responder Hub",
+    "description": "A high-fidelity tactical interface for first responders featuring real-time incident reporting, audio analysis, and decentralized ledger logging.",
+    "requestFramePermissions": [
+        "microphone",
+        "geolocation"
+    ]
+}
