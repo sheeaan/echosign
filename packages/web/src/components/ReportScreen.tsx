@@ -20,6 +20,33 @@ const ReportScreen: React.FC<ReportScreenProps> = ({ onIncidentCapture, isDarkMo
     const [textInput, setTextInput] = useState<string>('');
     const [currentIncident, setCurrentIncident] = useState<Incident | null>(null);
     const [isSyncing, setIsSyncing] = useState(false);
+    const [gpsCoords, setGpsCoords] = useState<string>('Acquiring...');
+    const [gpsStatus, setGpsStatus] = useState<'acquiring' | 'active' | 'unavailable'>('acquiring');
+
+    // Get real GPS coordinates
+    useEffect(() => {
+        if (!navigator.geolocation) {
+            setGpsCoords('N/A');
+            setGpsStatus('unavailable');
+            return;
+        }
+        const watchId = navigator.geolocation.watchPosition(
+            (pos) => {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                const latDir = lat >= 0 ? 'N' : 'S';
+                const lngDir = lng >= 0 ? 'E' : 'W';
+                setGpsCoords(`${Math.abs(lat).toFixed(4)} ${latDir}, ${Math.abs(lng).toFixed(4)} ${lngDir}`);
+                setGpsStatus('active');
+            },
+            () => {
+                setGpsCoords('Permission denied');
+                setGpsStatus('unavailable');
+            },
+            { enableHighAccuracy: true }
+        );
+        return () => navigator.geolocation.clearWatch(watchId);
+    }, []);
 
     // Process audio when recording stops
     useEffect(() => {
@@ -202,20 +229,20 @@ const ReportScreen: React.FC<ReportScreenProps> = ({ onIncidentCapture, isDarkMo
                 <div className="flex items-center justify-between mb-4 pr-12">
                     <div className="flex flex-col">
                         <div className="flex items-center gap-2 opacity-80 mb-1">
-                            <span className="material-symbols-outlined text-xs">location_searching</span>
-                            <span className="text-[10px] font-mono tracking-[0.2em] font-bold">GPS SIGNAL: ACTIVE</span>
+                            <span className="material-symbols-outlined text-xs">
+                                {gpsStatus === 'active' ? 'my_location' : gpsStatus === 'acquiring' ? 'location_searching' : 'location_disabled'}
+                            </span>
+                            <span className={`text-[10px] font-mono tracking-[0.2em] font-bold ${gpsStatus === 'active' ? '' : 'opacity-60'}`}>
+                                GPS SIGNAL: {gpsStatus === 'active' ? 'ACTIVE' : gpsStatus === 'acquiring' ? 'ACQUIRING' : 'UNAVAILABLE'}
+                            </span>
                         </div>
                         <h1 className="text-2xl font-extrabold tracking-tight tactical-font uppercase">Report Incident</h1>
                     </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4 py-3 px-4 bg-black/20 rounded-tactical border border-white/10">
+                <div className="py-3 px-4 bg-black/20 rounded-tactical border border-white/10">
                     <div className="flex flex-col">
                         <span className="text-[9px] text-white/50 uppercase font-bold tracking-tighter">Coordinate</span>
-                        <span className="text-[11px] font-mono font-medium">34.0522 N, 118.2437 W</span>
-                    </div>
-                    <div className="flex flex-col text-right">
-                        <span className="text-[9px] text-white/50 uppercase font-bold tracking-tighter">Sector</span>
-                        <span className="text-[11px] font-mono font-medium">4-ALPHA [COMM-OK]</span>
+                        <span className="text-[11px] font-mono font-medium">{gpsCoords}</span>
                     </div>
                 </div>
             </header>
@@ -400,15 +427,6 @@ const ReportScreen: React.FC<ReportScreenProps> = ({ onIncidentCapture, isDarkMo
                                             <p className="text-[11px] font-mono text-primary/80 font-bold mt-1">CODE: {classification.code} // PRIORITY: {classification.priority}</p>
                                         </div>
                                     </div>
-                                    <button
-                                        onClick={() => {
-                                            console.log('Editing functionality is not yet implemented.');
-                                            alert('Editing classification is not yet implemented.');
-                                        }}
-                                        className="w-10 h-10 flex items-center justify-center rounded-button bg-white/5 border border-white/10 active:bg-white/20 transition-colors"
-                                    >
-                                        <span className="material-symbols-outlined text-white/70">edit</span>
-                                    </button>
                                 </div>
                             </div>
                         </div>

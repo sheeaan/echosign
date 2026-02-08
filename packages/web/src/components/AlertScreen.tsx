@@ -22,9 +22,16 @@ const AlertScreen: React.FC<AlertScreenProps> = ({ isDarkMode, onToggleTheme, in
     const [error, setError] = useState<string | null>(null);
     const { startListening, stopAndDecode, isListening } = useAcousticListen();
     const [hexInput, setHexInput] = useState('');
+    const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
-    // Show the most recent incident
-    const latestIncident = incidents.length > 0 ? incidents[0] : null;
+    // Show the most recent non-dismissed incident
+    const latestIncident = incidents.find(i => !dismissedIds.has(i.id)) || null;
+    const pendingCount = incidents.filter(i => i.status === 'pending' && !dismissedIds.has(i.id)).length;
+
+    const handleIgnore = () => {
+        if (!latestIncident) return;
+        setDismissedIds(prev => new Set(prev).add(latestIncident.id));
+    };
 
     const handleAcknowledge = async () => {
         if (!latestIncident) return;
@@ -150,12 +157,10 @@ const AlertScreen: React.FC<AlertScreenProps> = ({ isDarkMode, onToggleTheme, in
     return (
         <div className="flex flex-col min-h-full">
             <header className="flex items-center p-4 pt-12 pb-4 justify-between bg-white/95 dark:bg-brand-bg-dark/95 backdrop-blur-md border-b border-gray-200 dark:border-brand-border sticky top-0 z-50 transition-colors">
-                <button className="text-primary flex size-10 items-center justify-center hover:bg-brand-dark/10 rounded-functional transition-colors">
-                    <span className="material-symbols-outlined text-[24px]">chevron_left</span>
-                </button>
+                <div className="w-10" />
                 <div className="flex flex-col items-center">
                     <span className="text-[10px] font-mono text-primary uppercase tracking-[0.3em] font-bold">Inbound Comms</span>
-                    <h2 className="text-brand-dark dark:text-white tactical-font text-lg font-bold leading-none tracking-wider uppercase">Alert Channel Alpha</h2>
+                    <h2 className="text-brand-dark dark:text-white tactical-font text-lg font-bold leading-none tracking-wider uppercase">Alert Channel</h2>
                 </div>
                 <div className="flex items-center gap-3">
                     <button
@@ -166,8 +171,10 @@ const AlertScreen: React.FC<AlertScreenProps> = ({ isDarkMode, onToggleTheme, in
                     </button>
                     <div className="flex w-6 items-center justify-end mr-1">
                         <span className="relative flex h-3 w-3">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                            {pendingCount > 0 && (
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                            )}
+                            <span className={`relative inline-flex rounded-full h-3 w-3 ${pendingCount > 0 ? 'bg-primary' : 'bg-gray-400'}`}></span>
                         </span>
                     </div>
                 </div>
@@ -265,12 +272,12 @@ const AlertScreen: React.FC<AlertScreenProps> = ({ isDarkMode, onToggleTheme, in
                                 value={hexInput}
                                 onChange={(e) => setHexInput(e.target.value)}
                                 placeholder="Enter 48-character hex code (e.g., 010203...)"
-                                className="w-full h-24 bg-brand-card-dark border border-brand-border rounded-input p-3 text-sm font-mono resize-none focus:outline-none focus:border-primary mb-4"
+                                className="w-full h-24 bg-gray-50 dark:bg-brand-card-dark border border-gray-200 dark:border-brand-border rounded-tactical p-3 text-sm font-mono text-brand-dark dark:text-white placeholder-gray-400 dark:placeholder-white/30 resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors mb-4"
                             />
                             <button
                                 onClick={handleDecodeHex}
                                 disabled={isDecodingHex || !hexInput.trim()}
-                                className="w-full flex items-center justify-center rounded-functional h-14 gap-3 tactical-font font-bold text-lg tracking-widest shadow-lg hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-primary text-white"
+                                className="w-full flex items-center justify-center rounded-functional h-14 gap-3 tactical-font font-bold text-lg tracking-widest shadow-lg hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-primary text-brand-dark"
                             >
                                 {isDecodingHex ? 'DECODING HEX...' : 'DECODE HEX'}
                             </button>
@@ -298,17 +305,23 @@ const AlertScreen: React.FC<AlertScreenProps> = ({ isDarkMode, onToggleTheme, in
                                 <span>0kHz</span>
                             </div>
                             <div className="absolute inset-0 flex items-end justify-around px-8 pb-3">
-                                {[...Array(15)].map((_, i) => (
-                                    <div
-                                        key={i}
-                                        className={`w-1.5 rounded-full transition-all duration-300 ease-in-out ${isListening ? 'bg-brand-success' : 'bg-gray-300 dark:bg-gray-700'}`}
-                                        style={{
-                                            height: isListening ? `${Math.random() * 80 + 20}%` : '10%',
-                                            opacity: isListening ? Math.random() * 0.5 + 0.5 : 0.3,
-                                            animation: isListening ? `pulse ${Math.random() * 2 + 1}s infinite` : 'none',
-                                        }}
-                                    ></div>
-                                ))}
+                                {[...Array(15)].map((_, i) => {
+                                    // Deterministic values per bar so they don't flicker on re-render
+                                    const baseHeight = ((i * 37 + 13) % 80) + 20;
+                                    const animDuration = ((i * 53 + 7) % 20 + 10) / 10;
+                                    const animDelay = (i * 0.15);
+                                    return (
+                                        <div
+                                            key={i}
+                                            className={`w-1.5 rounded-full transition-all duration-300 ease-in-out ${isListening ? 'bg-brand-success' : 'bg-gray-300 dark:bg-gray-700'}`}
+                                            style={{
+                                                height: isListening ? `${baseHeight}%` : '10%',
+                                                opacity: isListening ? 0.7 : 0.3,
+                                                animation: isListening ? `pulse ${animDuration}s ${animDelay}s infinite` : 'none',
+                                            }}
+                                        />
+                                    );
+                                })}
                             </div>
                             {isListening && (
                                 <div className="absolute top-0 right-1/4 h-full w-[1px] bg-primary/40 shadow-[0_0_8px_#FCBA04]"></div>
@@ -350,8 +363,12 @@ const AlertScreen: React.FC<AlertScreenProps> = ({ isDarkMode, onToggleTheme, in
             </main>
 
             <footer className="bg-white/95 dark:bg-brand-bg-dark px-4 pt-4 pb-10 border-t border-gray-200 dark:border-brand-border flex gap-3 shadow-xl transition-colors">
-                <button className="flex-1 flex items-center justify-center h-14 rounded-functional bg-gray-100 dark:bg-brand-dark/20 text-gray-500 dark:text-gray-400 tactical-font font-bold text-sm tracking-[0.2em] border border-gray-200 dark:border-brand-border active:brightness-90 transition-colors">
-                    IGNORE
+                <button
+                    onClick={handleIgnore}
+                    disabled={!latestIncident}
+                    className="flex-1 flex items-center justify-center h-14 rounded-functional bg-gray-100 dark:bg-brand-dark/20 text-gray-500 dark:text-gray-400 tactical-font font-bold text-sm tracking-[0.2em] border border-gray-200 dark:border-brand-border active:brightness-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    DISMISS
                 </button>
                 <button
                     onClick={handleAcknowledge}
