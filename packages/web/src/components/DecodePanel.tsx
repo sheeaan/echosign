@@ -9,23 +9,30 @@ import { api } from '../api/client.js';
 export function DecodePanel() {
   const listener = useAcousticListen();
   const player = useAudioPlayer();
-  const [decoded, setDecoded] = useState<{ text: string; severity: number; crcValid?: boolean } | null>(null);
+  const [decoded, setDecoded] = useState<{ text: string; severity: number; crcValid?: boolean; hex?: string; type?: string } | null>(null);
   const [verifyStatus, setVerifyStatus] = useState<'verified' | 'unverified' | 'failed' | null>(null);
   const [loading, setLoading] = useState('');
   const [error, setError] = useState('');
   const [hexInput, setHexInput] = useState('');
   const [mode, setMode] = useState<'acoustic' | 'hex'>('acoustic');
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditUrl, setAuditUrl] = useState('');
+  const [auditError, setAuditError] = useState('');
 
   const decodeHex = async (hex: string, skipCrc = false) => {
     setLoading('Decoding...');
     setError('');
     setDecoded(null);
+    setAuditUrl('');
+    setAuditError('');
     try {
       const decResult = await api.decode(hex, undefined, skipCrc);
       setDecoded({
         text: decResult.text,
         severity: decResult.fields.severity,
         crcValid: decResult.crcValid,
+        hex,
+        type: decResult.fields.type,
       });
       setVerifyStatus(decResult.crcValid ? 'verified' : 'unverified');
       try {
@@ -63,6 +70,29 @@ export function DecodePanel() {
     }
     // Hex paste: enforce CRC (data should be exact)
     decodeHex(cleaned, false);
+  };
+
+  const handleAuditSync = async () => {
+    if (!decoded?.hex) return;
+    setAuditLoading(true);
+    setAuditError('');
+    setAuditUrl('');
+    try {
+      const result = await api.auditSubmit([{
+        code: decoded.hex,
+        signature: '',
+        pubkey: '',
+        timestamp: Date.now(),
+        alertType: decoded.type || 'unknown',
+        confidence: listener.result?.confidence ?? 1.0,
+      }]);
+      if (result.results.length > 0) {
+        setAuditUrl(result.results[0].explorerUrl);
+      }
+    } catch (err) {
+      setAuditError(String(err));
+    }
+    setAuditLoading(false);
   };
 
   return (
@@ -170,7 +200,34 @@ export function DecodePanel() {
       {error && <div className="text-red-400 text-sm">{error}</div>}
 
       {decoded && (
-        <AlertDisplay text={decoded.text} severity={decoded.severity} />
+        <>
+          <AlertDisplay text={decoded.text} severity={decoded.severity} />
+
+          {/* Sync to Blockchain */}
+          <button
+            onClick={handleAuditSync}
+            disabled={auditLoading}
+            className="px-6 py-2 bg-purple-600 text-white font-bold rounded-lg hover:bg-purple-500 disabled:opacity-50"
+          >
+            {auditLoading ? 'Syncing to Solana...' : 'Sync to Blockchain'}
+          </button>
+
+          {auditError && <div className="text-red-400 text-sm">{auditError}</div>}
+
+          {auditUrl && (
+            <div className="text-sm">
+              <span className="text-gray-400">On-chain: </span>
+              <a
+                href={auditUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-purple-400 underline break-all"
+              >
+                {auditUrl}
+              </a>
+            </div>
+          )}
+        </>
       )}
 
       {player.isPlaying && (

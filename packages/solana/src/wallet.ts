@@ -33,7 +33,14 @@ export async function ensureFunded(
 ): Promise<void> {
   const balance = await connection.getBalance(keypair.publicKey);
   if (balance < minBalance) {
-    const sig = await connection.requestAirdrop(keypair.publicKey, LAMPORTS_PER_SOL);
-    await connection.confirmTransaction(sig);
+    try {
+      const sig = await connection.requestAirdrop(keypair.publicKey, LAMPORTS_PER_SOL);
+      await connection.confirmTransaction(sig);
+    } catch {
+      throw new Error(
+        `Wallet balance too low (${balance / LAMPORTS_PER_SOL} SOL). ` +
+        `Fund ${keypair.publicKey.toBase58()} at https://faucet.solana.com`
+      );
+    }
   }
 }

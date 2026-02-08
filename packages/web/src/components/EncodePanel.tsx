@@ -13,6 +13,9 @@ export function EncodePanel() {
   const [loading, setLoading] = useState('');
   const [error, setError] = useState('');
   const [textInput, setTextInput] = useState('');
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditUrl, setAuditUrl] = useState('');
+  const [auditError, setAuditError] = useState('');
 
   // When recording stops, send audio to STT
   useEffect(() => {
@@ -36,6 +39,8 @@ export function EncodePanel() {
     if (!text) return;
     setLoading('Encoding...');
     setError('');
+    setAuditUrl('');
+    setAuditError('');
     try {
       const result = await api.encode(text);
       setEncoded(result);
@@ -49,6 +54,29 @@ export function EncodePanel() {
     if (!encoded) return;
     const bytes = new Uint8Array(encoded.hex.match(/.{2}/g)!.map(h => parseInt(h, 16)));
     await acoustic.transmit(bytes);
+  };
+
+  const handleAuditSync = async () => {
+    if (!encoded) return;
+    setAuditLoading(true);
+    setAuditError('');
+    setAuditUrl('');
+    try {
+      const result = await api.auditSubmit([{
+        code: encoded.hex,
+        signature: encoded.signature,
+        pubkey: encoded.pubkey,
+        timestamp: Date.now(),
+        alertType: encoded.fields.type,
+        confidence: 1.0,
+      }]);
+      if (result.results.length > 0) {
+        setAuditUrl(result.results[0].explorerUrl);
+      }
+    } catch (err) {
+      setAuditError(String(err));
+    }
+    setAuditLoading(false);
   };
 
   return (
@@ -118,6 +146,31 @@ export function EncodePanel() {
                 className="bg-red-600 h-2 rounded-full transition-all"
                 style={{ width: `${acoustic.progress * 100}%` }}
               />
+            </div>
+          )}
+
+          {/* Sync to Blockchain */}
+          <button
+            onClick={handleAuditSync}
+            disabled={auditLoading}
+            className="px-6 py-2 bg-purple-600 text-white font-bold rounded-lg hover:bg-purple-500 disabled:opacity-50"
+          >
+            {auditLoading ? 'Syncing to Solana...' : 'Sync to Blockchain'}
+          </button>
+
+          {auditError && <div className="text-red-400 text-sm">{auditError}</div>}
+
+          {auditUrl && (
+            <div className="text-sm">
+              <span className="text-gray-400">On-chain: </span>
+              <a
+                href={auditUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-purple-400 underline break-all"
+              >
+                {auditUrl}
+              </a>
             </div>
           )}
         </div>

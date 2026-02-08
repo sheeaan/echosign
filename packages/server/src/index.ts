@@ -4,13 +4,13 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import encodeRouter from './routes/encode';
-import decodeRouter from './routes/decode';
-import sttRouter from './routes/stt';
-import ttsRouter from './routes/tts';
-import classifyRouter from './routes/classify';
-import incidentsRouter from './routes/incidents';
-// import auditRouter from './routes/audit.js'; // Solana — skipped for now
+import encodeRouter from './routes/encode.js';
+import decodeRouter from './routes/decode.js';
+import sttRouter from './routes/stt.js';
+import ttsRouter from './routes/tts.js';
+import classifyRouter from './routes/classify.js';
+import incidentsRouter from './routes/incidents.js';
+import auditRouter from './routes/audit.js';
 
 // Load .env from project root (two directories up from this file)
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -29,7 +29,7 @@ app.use('/api', sttRouter);
 app.use('/api', ttsRouter);
 app.use('/api', classifyRouter);
 app.use('/api', incidentsRouter);
-// app.use('/api', auditRouter); // Solana — skipped for now
+app.use('/api', auditRouter);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: Date.now() });

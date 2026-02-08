@@ -28,6 +28,8 @@ async function postFormData<T>(path: string, formData: FormData): Promise<T> {
 export interface EncodeResult {
   code: string;
   hex: string;
+  signature: string;
+  pubkey: string;
   fields: {
     type: string;
     severity: number;
