@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Incident } from '../types';
-import { transcribeAudio, classifyIncident, createIncident, encodeText } from '../services/incidents';
+import { transcribeAudio, classifyIncident, createIncident, encodeText, auditSubmit, updateIncident } from '../services/incidents';
 import { useRecording } from '../hooks/useRecording';
+import { useAcousticTransmit } from '../hooks/useAcousticTransmit';
 
 interface ReportScreenProps {
     onIncidentCapture: (incident: Incident) => void;
@@ -11,12 +12,14 @@ interface ReportScreenProps {
 
 const ReportScreen: React.FC<ReportScreenProps> = ({ onIncidentCapture, isDarkMode, onToggleTheme }) => {
     const { isRecording, audioBlob, startRecording, stopRecording, error: recordingError } = useRecording();
+    const { transmit, isPlaying, progress } = useAcousticTransmit();
     const [transcription, setTranscription] = useState<string>('');
     const [classification, setClassification] = useState<any>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [textInput, setTextInput] = useState<string>('');
     const [currentIncident, setCurrentIncident] = useState<Incident | null>(null);
+    const [isSyncing, setIsSyncing] = useState(false);
 
     // Process audio when recording stops
     useEffect(() => {
@@ -142,6 +145,39 @@ const ReportScreen: React.FC<ReportScreenProps> = ({ onIncidentCapture, isDarkMo
             console.error('Processing error:', err);
             setError(err instanceof Error ? err.message : 'Failed to process text');
             setIsAnalyzing(false);
+        }
+    };
+
+    const handleTransmit = async () => {
+        if (!currentIncident?.hexCode) return;
+        const bytes = new Uint8Array(
+            currentIncident.hexCode.match(/.{2}/g)!.map(h => parseInt(h, 16))
+        );
+        await transmit(bytes);
+    };
+
+    const handleSyncToChain = async () => {
+        if (!currentIncident) return;
+        try {
+            setIsSyncing(true);
+            setError(null);
+            const { results } = await auditSubmit([{
+                code: currentIncident.hexCode || currentIncident.id,
+                signature: currentIncident.signature || '',
+                pubkey: currentIncident.pubkey || '',
+                timestamp: Math.floor(Date.now() / 1000),
+                alertType: currentIncident.type,
+            }]);
+            const explorerUrl = results[0]?.explorerUrl || '';
+            await updateIncident(currentIncident.id, { status: 'synced', explorerUrl });
+            const updated = { ...currentIncident, status: 'synced' as const, explorerUrl };
+            setCurrentIncident(updated);
+            onIncidentCapture(updated);
+        } catch (err) {
+            console.error('Sync failed:', err);
+            setError(err instanceof Error ? err.message : 'Failed to sync to Solana');
+        } finally {
+            setIsSyncing(false);
         }
     };
 
@@ -285,6 +321,60 @@ const ReportScreen: React.FC<ReportScreenProps> = ({ onIncidentCapture, isDarkMo
                                     Signer: <span className="font-mono">{currentIncident.signer}</span>
                                 </div>
                             </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex gap-3 mb-4">
+                                {/* Transmit Acoustic Signal */}
+                                {currentIncident.hexCode && (
+                                    <button
+                                        onClick={handleTransmit}
+                                        disabled={isPlaying}
+                                        className="flex-1 py-3.5 bg-brand-dark dark:bg-brand-card-dark border border-primary/30 text-white rounded-tactical shadow-lg flex items-center justify-center gap-3 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed relative overflow-hidden"
+                                    >
+                                        {isPlaying && (
+                                            <div
+                                                className="absolute inset-0 bg-primary/20 transition-all duration-100"
+                                                style={{ width: `${progress * 100}%` }}
+                                            />
+                                        )}
+                                        <span className="material-symbols-outlined text-primary text-lg relative z-10" style={{ fontVariationSettings: "'FILL' 1" }}>
+                                            {isPlaying ? 'graphic_eq' : 'volume_up'}
+                                        </span>
+                                        <span className="font-mono text-[11px] font-bold tracking-widest uppercase relative z-10">
+                                            {isPlaying ? 'Transmitting...' : 'Transmit Audio'}
+                                        </span>
+                                    </button>
+                                )}
+
+                                {/* Sync to Solana */}
+                                {currentIncident.status !== 'synced' && (
+                                    <button
+                                        onClick={handleSyncToChain}
+                                        disabled={isSyncing}
+                                        className="flex-1 py-3.5 bg-brand-dark dark:bg-brand-card-dark border border-brand-success/30 text-white rounded-tactical shadow-lg flex items-center justify-center gap-3 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                                    >
+                                        <span className="material-symbols-outlined text-brand-success text-lg">
+                                            {isSyncing ? 'progress_activity' : 'database_upload'}
+                                        </span>
+                                        <span className="font-mono text-[11px] font-bold tracking-widest uppercase">
+                                            {isSyncing ? 'Syncing...' : 'Sync to Chain'}
+                                        </span>
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Explorer Link */}
+                            {currentIncident.explorerUrl && (
+                                <a
+                                    href={currentIncident.explorerUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full py-3 bg-brand-success/10 border border-brand-success/30 text-brand-success rounded-tactical flex items-center justify-center gap-3 hover:bg-brand-success/20 transition-colors"
+                                >
+                                    <span className="material-symbols-outlined text-lg">open_in_new</span>
+                                    <span className="font-mono text-[11px] font-bold tracking-widest uppercase">View on Solana Explorer</span>
+                                </a>
+                            )}
                         </div>
                     )
                 }

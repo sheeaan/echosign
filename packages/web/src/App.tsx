@@ -1,28 +1,57 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Screen, Incident } from './types';
 import ReportScreen from './components/ReportScreen';
 import AlertScreen from './components/AlertScreen';
 import LogScreen from './components/LogScreen';
 import { getAllIncidents } from './services/incidents';
 
+const STORAGE_KEY = 'echosign_incidents';
+
+function loadFromStorage(): Incident[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveToStorage(incidents: Incident[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(incidents));
+  } catch {
+    // Storage full or unavailable
+  }
+}
+
 const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<Screen>('report');
   const [isDarkMode, setIsDarkMode] = useState(true);
-  const [logs, setLogs] = useState<Incident[]>([]);
+  const [logs, setLogs] = useState<Incident[]>(loadFromStorage);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load incidents from API on mount
+  // Load incidents from API on mount, merge with localStorage
   useEffect(() => {
     loadIncidents();
   }, []);
 
+  // Persist to localStorage whenever logs change
+  useEffect(() => {
+    saveToStorage(logs);
+  }, [logs]);
+
   const loadIncidents = async () => {
     try {
-      const incidents = await getAllIncidents();
-      setLogs(incidents);
+      const serverIncidents = await getAllIncidents();
+      setLogs(prev => {
+        // Merge: server is source of truth, but keep local-only incidents
+        const serverIds = new Set(serverIncidents.map(i => i.id));
+        const localOnly = prev.filter(i => !serverIds.has(i.id));
+        return [...serverIncidents, ...localOnly];
+      });
     } catch (err) {
       console.error('Failed to load incidents:', err);
-      // If API fails, continue with empty array
+      // localStorage data is already loaded as initial state
     } finally {
       setIsLoading(false);
     }
@@ -39,41 +68,39 @@ const App: React.FC = () => {
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
-  const addIncidentToLog = (incident: Incident) => {
-    setLogs(prev => [incident, ...prev]);
-  };
+  const addIncidentToLog = useCallback((incident: Incident) => {
+    setLogs(prev => {
+      // Prevent duplicates
+      if (prev.some(l => l.id === incident.id)) {
+        return prev.map(l => l.id === incident.id ? incident : l);
+      }
+      return [incident, ...prev];
+    });
+  }, []);
 
-  const handleIncidentUpdate = (updated: Incident) => {
+  const handleIncidentUpdate = useCallback((updated: Incident) => {
     setLogs(prev => {
       const exists = prev.some(l => l.id === updated.id);
       if (exists) {
         return prev.map(l => l.id === updated.id ? updated : l);
       }
-      // New incident from decode
       return [updated, ...prev];
     });
-  };
-
-  const renderScreen = () => {
-    switch (currentScreen) {
-      case 'report':
-        return <ReportScreen onIncidentCapture={addIncidentToLog} isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />;
-      case 'alerts':
-        return <AlertScreen isDarkMode={isDarkMode} onToggleTheme={toggleTheme} incidents={logs} onIncidentUpdate={handleIncidentUpdate} />;
-      case 'logs':
-        return <LogScreen logs={logs} setLogs={setLogs} isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />;
-      default:
-        return <ReportScreen onIncidentCapture={addIncidentToLog} isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />;
-    }
-  };
+  }, []);
 
   return (
     <div className="flex justify-center min-h-screen">
       <div className="relative flex flex-col h-[100dvh] w-full max-w-[430px] bg-brand-bg-light dark:bg-brand-bg-dark overflow-hidden shadow-2xl transition-colors duration-300">
 
-        {/* Main Content Area */}
-        <div className="flex-1 overflow-y-auto no-scrollbar">
-          {renderScreen()}
+        {/* All screens stay mounted, only the active one is visible */}
+        <div className={`flex-1 overflow-y-auto no-scrollbar ${currentScreen === 'report' ? '' : 'hidden'}`}>
+          <ReportScreen onIncidentCapture={addIncidentToLog} isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />
+        </div>
+        <div className={`flex-1 overflow-y-auto no-scrollbar ${currentScreen === 'alerts' ? '' : 'hidden'}`}>
+          <AlertScreen isDarkMode={isDarkMode} onToggleTheme={toggleTheme} incidents={logs} onIncidentUpdate={handleIncidentUpdate} />
+        </div>
+        <div className={`flex-1 overflow-y-auto no-scrollbar ${currentScreen === 'logs' ? '' : 'hidden'}`}>
+          <LogScreen logs={logs} setLogs={setLogs} isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />
         </div>
 
         {/* Bottom Navigation */}
