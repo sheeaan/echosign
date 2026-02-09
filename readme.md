@@ -26,8 +26,6 @@ When a hurricane knocks out cell towers, your $1,000 smartphone becomes a brick.
 > In a blackout, the last thing standing is sound. We built on that.
 
 <p align="center">
-  <img src="docs/screenshots/report-light.png" width="250" alt="Report screen — voice input" />
-  &nbsp;&nbsp;
   <img src="docs/screenshots/report-gps.png" width="250" alt="Report screen — GPS active" />
   &nbsp;&nbsp;
   <img src="docs/screenshots/encode-dark.png" width="250" alt="Encoded hexcode and transmit" />
