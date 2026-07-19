@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Incident } from '../types';
+import { Incident, Screen } from '../types';
 import { updateIncidentStatus, updateIncident, auditSubmit } from '../services/incidents';
 
 interface LogScreenProps {
@@ -7,9 +7,10 @@ interface LogScreenProps {
     setLogs: (logs: Incident[]) => void;
     isDarkMode: boolean;
     onToggleTheme: () => void;
+    setCurrentScreen: (screen: Screen) => void;
 }
 
-const LogScreen: React.FC<LogScreenProps> = ({ logs, setLogs, isDarkMode, onToggleTheme }) => {
+const LogScreen: React.FC<LogScreenProps> = ({ logs, setLogs, isDarkMode, onToggleTheme, setCurrentScreen }) => {
     const [filter, setFilter] = useState('All');
     const [searchQuery, setSearchQuery] = useState('');
     const [syncingId, setSyncingId] = useState<string | null>(null);
@@ -105,7 +106,7 @@ const LogScreen: React.FC<LogScreenProps> = ({ logs, setLogs, isDarkMode, onTogg
                         <span className="material-symbols-outlined text-xl text-brand-dark dark:text-white">{isDarkMode ? 'light_mode' : 'dark_mode'}</span>
                     </button>
                 </div>
-                <div className="bg-gray-50 dark:bg-black/40 px-4 py-2 flex items-center justify-between border-t border-gray-100 dark:border-white/5">
+                {/* <div className="bg-gray-50 dark:bg-black/40 px-4 py-2 flex items-center justify-between border-t border-gray-100 dark:border-white/5">
                     <div className="flex items-center gap-2">
                         <span className="material-symbols-outlined text-sm text-primary">sensors</span>
                         <span className="text-[10px] font-mono font-bold tracking-tight text-brand-dark dark:text-primary">
@@ -120,7 +121,7 @@ const LogScreen: React.FC<LogScreenProps> = ({ logs, setLogs, isDarkMode, onTogg
                             <div className="size-1.5 rounded-full bg-primary shadow-[0_0_8px_#FCBA04]"></div>
                         )}
                     </div>
-                </div>
+                </div> */}
             </header>
 
             <main className="flex-1 pb-12">

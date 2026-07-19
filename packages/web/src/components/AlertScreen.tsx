@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Incident } from '../types';
+import { Incident, Screen } from '../types';
 import { updateIncidentStatus, decodeHex, createIncident, classifyIncident } from '../services/incidents';
 import { useAcousticListen } from '../hooks/useAcousticListen';
 
@@ -8,13 +8,14 @@ interface AlertScreenProps {
     onToggleTheme: () => void;
     incidents: Incident[];
     onIncidentUpdate: (updated: Incident) => void;
+    setCurrentScreen: (screen: Screen) => void;
 }
 
 function toHexString(bytes: Uint8Array): string {
     return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-const AlertScreen: React.FC<AlertScreenProps> = ({ isDarkMode, onToggleTheme, incidents, onIncidentUpdate }) => {
+const AlertScreen: React.FC<AlertScreenProps> = ({ isDarkMode, onToggleTheme, incidents, onIncidentUpdate, setCurrentScreen }) => {
     const [isAcknowledging, setIsAcknowledging] = useState(false);
     const [isDecoding, setIsDecoding] = useState(false);
     const [isDecodingHex, setIsDecodingHex] = useState(false);
@@ -277,10 +278,15 @@ const AlertScreen: React.FC<AlertScreenProps> = ({ isDarkMode, onToggleTheme, in
                     <span className="text-[10px] font-mono text-primary uppercase tracking-[0.3em] font-bold">Inbound Comms</span>
                     <h2 className="text-brand-dark dark:text-white tactical-font text-lg font-bold leading-none tracking-wider uppercase">Alert Channel</h2>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                     <button
                         onClick={onToggleTheme}
-                        className="w-10 h-10 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
+                        className="w-10 h-10 flex items-center justify-center rounded-xl transition-all
+                                bg-white dark:bg-slate-800 
+                                border border-slate-200 dark:border-slate-700
+                                shadow-sm dark:shadow-[inset_0_1px_2px_rgba(255,255,255,0.1)]
+                                hover:bg-slate-100 dark:hover:bg-slate-700/80
+                                z-10"
                     >
                         <span className="material-symbols-outlined text-xl text-brand-dark dark:text-white">{isDarkMode ? 'light_mode' : 'dark_mode'}</span>
                     </button>
@@ -297,80 +303,88 @@ const AlertScreen: React.FC<AlertScreenProps> = ({ isDarkMode, onToggleTheme, in
 
             <main className="flex-1 px-4 py-6 space-y-6">
                 {/* Alert Card */}
-                <section className="rounded-functional bg-white dark:bg-brand-card-dark border border-gray-200 dark:border-brand-border shadow-sm overflow-hidden transition-colors">
-                    <div className="w-full aspect-[16/8] bg-center bg-cover relative grayscale-[0.2] bg-brand-dark/10 dark:bg-brand-dark/40">
-                        <div className="absolute inset-0 bg-gradient-to-t from-white dark:from-brand-card-dark via-transparent to-transparent"></div>
-                        <div className="absolute top-4 left-4 flex flex-col gap-2">
+                <section className="rounded-functional bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-white/5 shadow-sm overflow-hidden transition-colors">
+                    {/* Image/Map Container */}
+                    <div className="w-full aspect-[21/2.2] bg-center bg-cover relative">
+                        
+                        {/* Badges */}
+                        <div className="absolute top-3 left-3 flex gap-1.5">
                             {latestIncident ? (
                                 <>
-                                    <div className={`text-brand-dark tactical-font text-[11px] font-bold px-3 py-1.5 rounded-tactical flex items-center gap-2 shadow-xl border border-white/20 ${latestIncident.priority === 'HIGH' || latestIncident.priority === 'CRITICAL' ? 'bg-primary' : 'bg-brand-success'}`}>
-                                        <span className="material-symbols-outlined text-[16px] font-bold">
+                                    <div className={`text-brand-dark tactical-font text-[10px] font-bold px-2.5 py-1 rounded-tactical flex items-center gap-2 shadow-xl border border-white/20 ${latestIncident.priority === 'HIGH' || latestIncident.priority === 'CRITICAL' ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white'}`}>
+                                        <span className="material-symbols-outlined text-[14px] font-bold">
                                             {latestIncident.priority === 'HIGH' || latestIncident.priority === 'CRITICAL' ? 'warning' : 'info'}
                                         </span>
-                                        <span className="tracking-widest uppercase">{latestIncident.priority} Priority</span>
+                                        <span className="tracking-widest uppercase">{latestIncident.priority}</span>
                                     </div>
-                                    <div className={`text-white tactical-font text-[10px] font-bold px-3 py-1 rounded-tactical flex items-center gap-2 border border-white/10 backdrop-blur-sm shadow-sm ${latestIncident.status === 'verified' ? 'bg-brand-success' : latestIncident.status === 'synced' ? 'bg-gray-600' : 'bg-primary/60'}`}>
-                                        <span className="material-symbols-outlined text-[14px] font-bold">
-                                            {latestIncident.status === 'verified' ? 'verified_user' : latestIncident.status === 'synced' ? 'cloud_done' : 'schedule'}
+                                    <div className={`text-white tactical-font text-[9px] font-bold px-2.5 py-1 rounded-tactical flex items-center gap-2 border border-white/10 backdrop-blur-md shadow-sm ${latestIncident.status === 'verified' ? 'bg-blue-600' : 'bg-slate-600/80'}`}>
+                                        <span className="material-symbols-outlined text-[12px] font-bold">
+                                            {latestIncident.status === 'verified' ? 'verified_user' : 'schedule'}
                                         </span>
-                                        <span className="tracking-widest uppercase text-xs">{latestIncident.status}</span>
+                                        <span className="tracking-widest uppercase">{latestIncident.status}</span>
                                     </div>
                                 </>
                             ) : (
-                                <div className="bg-gray-500 text-white tactical-font text-[11px] font-bold px-3 py-1.5 rounded-tactical flex items-center gap-2 shadow-xl">
-                                    <span className="material-symbols-outlined text-[16px] font-bold">inbox</span>
-                                    <span className="tracking-widest uppercase">No Incidents</span>
+                                <div className="bg-slate-500 text-white tactical-font text-[10px] font-bold px-3 py-1.5 rounded-tactical flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-[16px]">inbox</span>
+                                    <span className="tracking-widest">IDLE</span>
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    <div className="p-5 space-y-5">
+                    {/* Content Area - Tightened padding and spacing */}
+                    <div className="px-5 pb-5 pt-1 space-y-3">
                         <header>
                             <div className="flex items-center gap-2 mb-1">
-                                <div className="h-px flex-1 bg-primary/20"></div>
-                                <span className="font-mono text-primary/60 text-[10px] font-bold uppercase tracking-[0.2em]">
+                                <div className="h-[1px] flex-1 bg-blue-500/20"></div>
+                                <span className="font-mono text-blue-600 dark:text-blue-400 text-[9px] font-bold uppercase tracking-[0.3em]">
                                     {latestIncident ? `CODE: ${latestIncident.code}` : 'STANDBY'}
                                 </span>
-                                <div className="h-px flex-1 bg-primary/20"></div>
+                                <div className="h-[1px] flex-1 bg-blue-500/20"></div>
                             </div>
-                            <h1 className="text-brand-dark dark:text-white tactical-font text-2xl font-bold leading-tight uppercase text-center tracking-tight">
-                                {latestIncident ? latestIncident.type : 'Awaiting Signal'}
+                            <h1 className="text-slate-900 dark:text-white tactical-font text-xl font-black leading-tight uppercase text-center tracking-tight italic">
+                                {latestIncident ? latestIncident.type : 'Signal Lost'}
                             </h1>
                         </header>
 
                         {latestIncident && (
                             <>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="bg-gray-100 dark:bg-brand-dark/30 p-3 rounded-functional border border-gray-200 dark:border-brand-border/50 transition-colors text-brand-dark dark:text-white">
-                                        <div className="flex items-center gap-2 text-primary/70 mb-1">
-                                            <span className="material-symbols-outlined text-[18px]">schedule</span>
-                                            <span className="text-[9px] tactical-font font-bold uppercase tracking-wider">Timestamp</span>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-200 dark:border-white/5 transition-colors">
+                                        <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 mb-0.5">
+                                            <span className="material-symbols-outlined text-[16px]">schedule</span>
+                                            <span className="text-[8px] font-bold uppercase tracking-wider">Time</span>
                                         </div>
-                                        <p className="tactical-font text-sm font-bold">{latestIncident.timestamp}</p>
+                                        <p className="font-mono text-sm pt-1 font-bold text-slate-700 dark:text-slate-200">{latestIncident.timestamp}</p>
                                     </div>
-                                    <div className="bg-gray-100 dark:bg-brand-dark/30 p-3 rounded-functional border border-gray-200 dark:border-brand-border/50 transition-colors text-brand-dark dark:text-white">
-                                        <div className="flex items-center gap-2 text-primary/70 mb-1">
-                                            <span className="material-symbols-outlined text-[18px]">analytics</span>
-                                            <span className="text-[9px] tactical-font font-bold uppercase tracking-wider">Confidence</span>
+                                    <div className="bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-200 dark:border-white/5 transition-colors">
+                                        <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 mb-0.5">
+                                            <span className="material-symbols-outlined text-[16px]">analytics</span>
+                                            <span className="text-[8px] font-bold uppercase tracking-wider">Confidence</span>
                                         </div>
-                                        <p className="tactical-font text-xl font-bold">{latestIncident.match}<span className="text-[10px] text-gray-400">%</span></p>
+                                        <p className="font-mono text-lg font-black text-blue-600 dark:text-blue-400">
+                                            {latestIncident.match}<span className="text-[10px] opacity-50">%</span>
+                                        </p>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center justify-between gap-4">
-                                    <div className="flex-1">
-                                        <p className="text-brand-dark dark:text-white tactical-font text-sm font-semibold tracking-wide uppercase">{latestIncident.description.slice(0, 60)}{latestIncident.description.length > 60 ? '...' : ''}</p>
-                                        <p className="text-gray-400 dark:text-gray-500 font-mono text-[10px]">Signer: {latestIncident.signer}</p>
+                                <div className="bg-slate-50/50 dark:bg-white/5 p-3 rounded-xl border border-slate-200 dark:border-white/10">
+                                    <p className="text-slate-700 dark:text-slate-300 tactical-font text-xs font-semibold leading-relaxed uppercase">
+                                        {latestIncident.description}
+                                    </p>
+                                    <div className="mt-2 pt-2 border-t border-slate-200 dark:border-white/5 flex justify-between items-center">
+                                        <p className="text-slate-400 dark:text-slate-500 font-mono text-[9px]">AUTH: {latestIncident.signer}</p>
+                                        <span className="text-[9px] font-bold text-blue-500 animate-pulse">● LIVE</span>
                                     </div>
                                 </div>
                             </>
                         )}
 
                         {!latestIncident && (
-                            <div className="text-center py-8">
-                                <span className="material-symbols-outlined text-4xl text-gray-300 dark:text-gray-600 mb-2">radio</span>
-                                <p className="text-gray-400 dark:text-gray-600 text-sm">No incidents reported yet. Use Report tab or decode an acoustic signal.</p>
+                            <div className="text-center py-6">
+                                <span className="material-symbols-outlined text-3xl text-slate-300 dark:text-slate-700 mb-1">radar</span>
+                                <p className="text-slate-400 dark:text-slate-600 text-[11px] font-bold uppercase tracking-widest">Scanning Frequencies...</p>
                             </div>
                         )}
                     </div>
@@ -462,13 +476,15 @@ const AlertScreen: React.FC<AlertScreenProps> = ({ isDarkMode, onToggleTheme, in
                             <button
                                 onClick={handleDecodeAudio}
                                 disabled={isDecoding}
-                                className={`w-full flex items-center justify-center rounded-functional h-14 gap-3 tactical-font font-bold text-lg tracking-widest shadow-lg hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                                    isListening
-                                        ? 'bg-red-500 text-white'
-                                        : 'bg-primary text-brand-dark'
-                                }`}
+                                className={`w-full flex items-center justify-center py-2 px-6 gap-2 rounded-tactical font-extrabold text-sm uppercase tracking-wider transition-all duration-150 active:scale-[0.98] shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100
+                                    ${
+                                        isListening
+                                            ? 'bg-red-600 hover:bg-red-700 text-white'
+                                            : 'bg-primary hover:bg-primary/90 text-brand-dark'
+                                    }
+                                `}
                             >
-                                <span className="material-symbols-outlined text-[32px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                                <span className="material-symbols-outlined text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>
                                     {isListening ? 'stop_circle' : isDecoding ? 'progress_activity' : 'play_circle'}
                                 </span>
                                 {isListening ? 'STOP & DECODE' : isDecoding ? 'DECODING...' : 'DECODE AUDIO'}
@@ -489,7 +505,7 @@ const AlertScreen: React.FC<AlertScreenProps> = ({ isDarkMode, onToggleTheme, in
                 <button
                     onClick={handleAcknowledge}
                     disabled={!latestIncident || latestIncident.status !== 'pending' || isAcknowledging}
-                    className="flex-[1.5] flex items-center justify-center h-14 rounded-functional bg-brand-dark text-white tactical-font font-bold text-sm tracking-[0.2em] gap-2 shadow-xl border border-primary/30 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-[1.5] flex items-center justify-center py-3 px-4 gap-2 rounded-tactical font-extrabold text-sm uppercase tracking-wider shadow-lg transition-all duration-150 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-50 dark:text-slate-900 dark:hover:bg-white"
                 >
                     <span className="material-symbols-outlined text-[20px] text-primary">task_alt</span>
                     {isAcknowledging ? 'ACKNOWLEDGING...' : latestIncident?.status === 'verified' ? 'ACKNOWLEDGED' : 'ACKNOWLEDGE'}
